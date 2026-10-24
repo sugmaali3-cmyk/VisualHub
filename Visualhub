@@ -1,0 +1,2440 @@
+-- LocalScript -> StarterPlayer > StarterPlayerScripts
+-- VISUAL HUB v14
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UIS = game:GetService("UserInputService")
+local StatsService = game:GetService("Stats")
+
+local player = Players.LocalPlayer
+local WHITE = Color3.new(1, 1, 1)
+local ORIG_AMB = Lighting.OutdoorAmbient
+local ORIG_BRIGHT = Lighting.Brightness
+
+-- ===== ТЕМА =====
+local THEME = {
+	bg = Color3.fromRGB(9, 9, 11),
+	panel = Color3.fromRGB(18, 18, 22),
+	panelHi = Color3.fromRGB(30, 30, 36),
+	text = Color3.fromRGB(236, 236, 242),
+	dim = Color3.fromRGB(125, 125, 136),
+	off = Color3.fromRGB(44, 44, 52),
+	good = Color3.fromRGB(120, 235, 160),
+	warn = Color3.fromRGB(255, 210, 100),
+	bad = Color3.fromRGB(255, 105, 105),
+}
+local FB, FM, FR = Enum.Font.GothamBold, Enum.Font.GothamMedium, Enum.Font.Gotham
+local GOLD = math.pi * (3 - math.sqrt(5))
+
+local TEX = {
+	spark = "rbxasset://textures/particles/sparkles_main.dds",
+	fire = "rbxasset://textures/particles/fire_main.dds",
+	smoke = "rbxasset://textures/particles/smoke_main.dds",
+	wisp = "rbxasset://textures/particles/wispy_main.dds",
+}
+
+local RAINBOW = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 80)),
+	ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 200, 0)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 120)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 200, 255)),
+	ColorSequenceKeypoint.new(0.8, Color3.fromRGB(120, 80, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 200)),
+})
+
+local function rgb(r, g, b)
+	return Color3.fromRGB(r, g, b)
+end
+
+local function hsv(h, s, v)
+	return Color3.fromHSV(h, s, v)
+end
+
+local function kp(t, c)
+	return ColorSequenceKeypoint.new(t, c)
+end
+
+-- ===== ИКОНКИ (вставь ID картинки, только цифры) =====
+local ICONS = {
+	random = { id = "" },
+	next = { id = "" },
+	shape = { id = "" },
+	color = { id = "" },
+	reset = { id = "" },
+}
+
+local function iconId(key)
+	local e = ICONS[key]
+	if e and e.id ~= "" then
+		return "rbxassetid://" .. e.id
+	end
+	return nil
+end
+
+-- ===== АУРЫ =====
+local CAT_C, CAT_D, CAT_T, CAT_N = "КЛАССИКА", "ДРАКОНЫ", "ТЕХНО", "ПРИРОДА"
+local AURA_CATS = { CAT_C, CAT_D, CAT_T, CAT_N }
+
+local function A(cat, name, c1, c2, rate, beat, tex, accel, c3)
+	return { cat = cat, name = name, c1 = c1, c2 = c2, rate = rate, beat = beat, tex = tex, accel = accel or Vector3.zero, c3 = c3 }
+end
+
+local UP = Vector3.new(0, 4, 0)
+local DOWN = Vector3.new(0, -4, 0)
+
+local AURAS = {
+	A(CAT_C, "Ember", rgb(255, 150, 40), rgb(255, 40, 50), 70, 3, TEX.fire),
+	A(CAT_C, "Frost", rgb(190, 240, 255), rgb(60, 140, 255), 50, 2, TEX.spark),
+	A(CAT_C, "Void", rgb(170, 70, 255), rgb(25, 0, 55), 90, 2, TEX.smoke),
+	A(CAT_C, "Gold", rgb(255, 240, 130), rgb(255, 160, 30), 60, 2.5, TEX.spark),
+	A(CAT_C, "Sakura", rgb(255, 190, 220), rgb(255, 90, 150), 55, 1.5, TEX.spark),
+	A(CAT_C, "Toxic", rgb(180, 255, 60), rgb(40, 160, 40), 80, 3, TEX.smoke),
+	A(CAT_C, "Ocean", rgb(80, 230, 255), rgb(0, 90, 200), 65, 2, TEX.wisp),
+	A(CAT_C, "Galaxy", rgb(200, 140, 255), rgb(60, 20, 120), 85, 2, TEX.wisp),
+	A(CAT_C, "Blood", rgb(255, 60, 60), rgb(90, 0, 0), 75, 3.5, TEX.fire),
+	A(CAT_C, "Mint", rgb(170, 255, 220), rgb(40, 200, 160), 55, 1.5, TEX.spark),
+	A(CAT_C, "Lightning", WHITE, rgb(120, 180, 255), 100, 5, TEX.spark),
+	A(CAT_C, "Sunset", rgb(255, 190, 80), rgb(230, 60, 140), 60, 2, TEX.fire),
+	A(CAT_C, "Shadow", rgb(90, 90, 110), rgb(15, 15, 20), 40, 1, TEX.smoke),
+	A(CAT_C, "Crimson", rgb(220, 20, 60), rgb(120, 0, 20), 80, 3, TEX.fire),
+	A(CAT_C, "Amber", rgb(255, 190, 0), rgb(200, 80, 0), 70, 2.2, TEX.spark),
+	A(CAT_C, "Obsidian", rgb(70, 70, 80), rgb(5, 5, 8), 30, 1, TEX.smoke),
+
+	A(CAT_D, "Dragon Fire", rgb(255, 120, 20), rgb(180, 0, 0), 90, 2, TEX.fire, UP, rgb(255, 220, 80)),
+	A(CAT_D, "Dragon Ice", rgb(220, 250, 255), rgb(40, 120, 220), 60, 1.5, TEX.wisp, Vector3.new(0, 1, 0), rgb(150, 220, 255)),
+	A(CAT_D, "Dragon Venom", rgb(150, 255, 60), rgb(90, 0, 140), 70, 2, TEX.smoke, Vector3.new(0, 2, 0)),
+	A(CAT_D, "Dragon Gold", rgb(255, 235, 120), rgb(190, 120, 20), 75, 2.5, TEX.spark, Vector3.new(0, 3, 0), WHITE),
+	A(CAT_D, "Phoenix", rgb(255, 255, 200), rgb(255, 80, 0), 100, 4, TEX.fire, Vector3.new(0, 8, 0), rgb(255, 160, 30)),
+	A(CAT_D, "Abyss Dragon", rgb(60, 90, 255), rgb(5, 0, 20), 55, 1, TEX.smoke, Vector3.new(0, 1, 0)),
+	A(CAT_D, "Thunder Dragon", rgb(255, 255, 120), rgb(60, 140, 255), 110, 7, TEX.spark),
+	A(CAT_D, "Storm Dragon", rgb(180, 220, 255), rgb(40, 40, 120), 95, 6, TEX.wisp, nil, WHITE),
+	A(CAT_D, "Jade Dragon", rgb(120, 255, 170), rgb(0, 110, 70), 65, 1.8, TEX.smoke, Vector3.new(0, 1.5, 0)),
+	A(CAT_D, "Shadow Dragon", rgb(180, 40, 255), rgb(10, 0, 15), 70, 2, TEX.smoke, nil, rgb(255, 0, 120)),
+
+	A(CAT_T, "Techno Neon", rgb(0, 255, 255), rgb(255, 0, 200), 120, 6, TEX.spark),
+	A(CAT_T, "Matrix", rgb(120, 255, 120), rgb(0, 80, 0), 110, 5, TEX.spark, DOWN),
+	A(CAT_T, "Plasma", rgb(120, 80, 255), rgb(0, 220, 255), 95, 4, TEX.wisp, nil, rgb(255, 80, 220)),
+	A(CAT_T, "Glitch", WHITE, rgb(255, 0, 110), 130, 8, TEX.spark, nil, rgb(0, 255, 255)),
+	A(CAT_T, "Hologram", rgb(120, 255, 240), rgb(40, 140, 200), 80, 3, TEX.wisp),
+	A(CAT_T, "Synthwave", rgb(255, 80, 200), rgb(60, 0, 140), 85, 3, TEX.spark, Vector3.new(0, -2, 0), rgb(255, 200, 80)),
+	A(CAT_T, "Bass Drop", rgb(255, 60, 160), rgb(60, 255, 255), 100, 6, TEX.spark),
+	A(CAT_T, "Cyber Grid", rgb(0, 255, 140), rgb(0, 60, 255), 105, 4, TEX.spark),
+	A(CAT_T, "Laser", rgb(255, 0, 0), WHITE, 120, 9, TEX.spark),
+	A(CAT_T, "Vaporwave", rgb(255, 120, 220), rgb(80, 220, 255), 75, 2, TEX.wisp, nil, rgb(180, 120, 255)),
+	A(CAT_T, "Neural", rgb(255, 220, 0), rgb(0, 80, 255), 90, 5, TEX.spark),
+	A(CAT_T, "Pulse", rgb(150, 230, 255), rgb(30, 60, 200), 110, 4, TEX.wisp, nil, WHITE),
+
+	A(CAT_N, "Aurora", rgb(120, 255, 200), rgb(120, 80, 255), 70, 1.5, TEX.wisp, nil, rgb(60, 255, 160)),
+	A(CAT_N, "Nebula", rgb(255, 120, 200), rgb(90, 60, 255), 75, 1.2, TEX.wisp, nil, rgb(255, 200, 120)),
+	A(CAT_N, "Lava", rgb(255, 120, 0), rgb(120, 0, 0), 85, 2.5, TEX.fire, Vector3.new(0, 4, 0)),
+	A(CAT_N, "Emerald", rgb(80, 255, 130), rgb(0, 120, 60), 60, 1.8, TEX.wisp),
+}
+
+for _, a in ipairs(AURAS) do
+	if a.name == "Pulse" then
+		a.mat = Enum.Material.ForceField
+	end
+end
+
+-- ===== ФОРМЫ =====
+local function E(spread, lo, hi, acc, sz)
+	return { spread = spread, speed = NumberRange.new(lo, hi), accel = acc or Vector3.zero, size = sz or 0.4 }
+end
+
+local function star(j, t)
+	local ang = j * math.pi / 5 - math.pi / 2 + t * 0.4
+	local r = (j % 2 == 0) and 2.6 or 1.2
+	return Vector3.new(math.cos(ang) * r, 0, math.sin(ang) * r)
+end
+
+local function hash(x)
+	return (math.sin(x * 12.9898) * 43758.5453) % 1
+end
+
+local SHAPES = {
+	{ name = "Орбы", cnt = 12, size = 0.8, spin = 1, emit = E(180, 1, 3),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 1.2
+			local outer = i % 2 == 0
+			local r = outer and 3.6 or 2.5
+			local y = 1.6 + math.sin(t * 2 + i) * 0.5 + (outer and 0 or 0.9)
+			return Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
+		end },
+	{ name = "Сфера", cnt = 60, size = 0.28, spin = 0.4, emit = E(180, 0, 0.6, Vector3.zero, 1.0),
+		pos = function(i, n, t)
+			local y = 1 - 2 * (i - 0.5) / n
+			local r = math.sqrt(1 - y * y)
+			local th = GOLD * i + t * 0.5
+			return Vector3.new(math.cos(th) * r * 2.5, y * 2.5 + 0.3, math.sin(th) * r * 2.5)
+		end },
+	{ name = "Ореол", cnt = 36, size = 0.32, spin = 0, emit = E(90, 0.3, 0.8),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 1.2
+			local ripple = math.sin(a * 3 - t * 4) * 0.12
+			return Vector3.new(math.cos(a) * 1.5, 3.4 + ripple, math.sin(a) * 1.5)
+		end },
+	{ name = "Крылья", cnt = 40, size = 1, dim = Vector3.new(0.35, 1.1, 1.8), part = Enum.PartType.Wedge, orient = "yaw", spin = 0.3, emit = E(60, 0.5, 1.5, Vector3.new(0, 1, 0)),
+		pos = function(i, n, t)
+			local side = (i % 2 == 0) and 1 or -1
+			local k = (math.floor((i - 1) / 2) + 1) / math.ceil(n / 2)
+			local flap = math.sin(t * 3)
+			return Vector3.new(side * (0.6 + 2.8 * k * (1 - 0.3 * flap)), 0.5 + 2.2 * k + 0.5 * flap * k, 1.0 + 0.7 * k)
+		end },
+	{ name = "Спираль", cnt = 44, size = 0.36, spin = 0, emit = E(30, 1, 2, Vector3.new(0, 3, 0)),
+		pos = function(i, n, t)
+			local frac = i / n
+			local strand = (i % 2 == 0) and math.pi or 0
+			local h = (frac + t * 0.12) % 1
+			local a = frac * math.pi * 7 + t * 1.5 + strand
+			return Vector3.new(math.cos(a) * 1.9, -2.8 + h * 6.2, math.sin(a) * 1.9)
+		end },
+	{ name = "Звезда", cnt = 60, size = 0.25, spin = 0, emit = E(180, 0.3, 0.8, Vector3.zero, 0.3),
+		pos = function(i, n, t)
+			local s = ((i - 1) / n) * 10
+			local j = math.floor(s)
+			local f = s - j
+			return star(j, t):Lerp(star(j + 1, t), f) + Vector3.new(0, 3.2, 0)
+		end },
+	{ name = "Гироскоп", cnt = 48, size = 0.3, spin = 0.5, emit = E(180, 0.5, 1.5),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 1.5
+			local p
+			if i % 2 == 0 then
+				p = Vector3.new(math.cos(a) * 2.4, math.sin(a) * 2.4 + 0.6, 0)
+			else
+				p = Vector3.new(0, math.sin(a) * 2.4 + 0.6, math.cos(a) * 2.4)
+			end
+			local c, s = math.cos(t * 0.8), math.sin(t * 0.8)
+			return Vector3.new(p.X * c + p.Z * s, p.Y, -p.X * s + p.Z * c)
+		end },
+	{ name = "Корона", cnt = 36, size = 1, dim = Vector3.new(0.35, 1, 0.35), part = Enum.PartType.Block, orient = "yaw", spin = 0, emit = E(90, 0.5, 1.2, Vector3.new(0, 2, 0)),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2
+			local y = 2.6 + 0.9 * math.abs(math.sin(a * 2.5 + t * 2))
+			return Vector3.new(math.cos(a) * 1.1, y, math.sin(a) * 1.1)
+		end },
+	{ name = "Сердце", cnt = 48, size = 0.3, spin = 0, emit = E(120, 0.5, 1.5, Vector3.new(0, 1, 0)),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2
+			local k = 1 + 0.08 * math.sin(t * 4)
+			local x = 16 * math.sin(a) ^ 3
+			local y = 13 * math.cos(a) - 5 * math.cos(2 * a) - 2 * math.cos(3 * a) - math.cos(4 * a)
+			return Vector3.new(x * 0.13 * k, y * 0.13 * k + 3.3, 0.5)
+		end },
+	{ name = "Кубы", cnt = 8, size = 1.1, part = Enum.PartType.Block, orient = "yaw", spin = 1.5, emit = E(180, 0.5, 1),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 1.6
+			return Vector3.new(math.cos(a) * 3.2, 1.2 + math.sin(t * 2 + i) * 0.4, math.sin(a) * 3.2)
+		end },
+	{ name = "Кольца", cnt = 18, size = 1, dim = Vector3.new(0.12, 1.3, 1.3), part = Enum.PartType.Cylinder, orient = "vert", spin = 0.6, emit = E(180, 0.2, 0.6, Vector3.zero, 0.3),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.4
+			return Vector3.new(math.cos(a) * 2.6, 2.4 + math.sin(t * 1.5 + i) * 0.5, math.sin(a) * 2.6)
+		end },
+	{ name = "Волны", cnt = 40, size = 0.35, spin = 0, emit = E(120, 0.4, 1, Vector3.zero, 0.5),
+		pos = function(i, n, t)
+			local frac = i / n
+			local x = (frac - 0.5) * 5
+			local y = 2.2 + math.sin(frac * math.pi * 4 + t * 3) * 0.9
+			return Vector3.new(x, y, 0.4 * math.cos(frac * math.pi * 4 + t * 3))
+		end },
+	{ name = "Звёзды", cnt = 55, size = 0.22, spin = 0, emit = E(180, 0.3, 0.7, Vector3.zero, 0.3),
+		pos = function(i, n, t)
+			local r1 = hash(i)
+			local r2 = hash(i + 100)
+			local a = r1 * math.pi * 2 + t * 0.3
+			local h = r2 * 5.5 - 1.5
+			local rad = 2.6 + r2 * 1.4
+			return Vector3.new(math.cos(a) * rad, h, math.sin(a) * rad)
+		end },
+	{ name = "Колонны", cnt = 12, size = 1, dim = Vector3.new(2.6, 0.7, 0.7), part = Enum.PartType.Cylinder, orient = "vert", spin = 0, emit = E(90, 0.5, 1.2, Vector3.new(0, 1, 0)),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.4
+			return Vector3.new(math.cos(a) * 3.4, 1.4 + 0.6 * math.sin(t * 2 + i), math.sin(a) * 3.4)
+		end },
+	{ name = "Кристаллы", cnt = 12, size = 1, dim = Vector3.new(0.9, 2, 0.9), part = Enum.PartType.Block, mesh = Enum.MeshType.Pyramid, orient = "yaw", spin = 0.5, emit = E(150, 0.4, 1, Vector3.zero, 0.35),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.3
+			return Vector3.new(math.cos(a) * 3, 1.8 + 0.3 * math.sin(t * 2 + i), math.sin(a) * 3)
+		end },
+	{ name = "Щиты", cnt = 10, size = 1, dim = Vector3.new(1.2, 1.6, 0.12), part = Enum.PartType.Block, orient = "flat", spin = 0, emit = E(90, 0.4, 0.9),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.5
+			return Vector3.new(math.cos(a) * 3.3, 1.2, math.sin(a) * 3.3)
+		end },
+	{ name = "Клинья", cnt = 12, size = 1, dim = Vector3.new(0.7, 1.6, 1.3), part = Enum.PartType.Wedge, orient = "yaw", spin = 0.4, emit = E(120, 0.5, 1.2),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.6
+			return Vector3.new(math.cos(a) * 3.6, 0.8 + 0.5 * math.sin(t * 2 + i), math.sin(a) * 3.6)
+		end },
+	{ name = "Лучи", cnt = 16, size = 1, dim = Vector3.new(0.15, 0.15, 2.4), part = Enum.PartType.Block, orient = "radial", spin = 0, emit = E(180, 0.3, 0.8),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.2
+			return Vector3.new(math.cos(a) * 2.2, 2.6, math.sin(a) * 2.2)
+		end },
+	{ name = "Паутина", cnt = 18, size = 0.35, beam = 2, spin = 0.2, emit = E(180, 0.4, 1),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2 + t * 0.5
+			return Vector3.new(math.cos(a) * 2.8, 1.4 + 0.5 * math.sin(t * 2 + i), math.sin(a) * 2.8)
+		end },
+	{ name = "Цветок", cnt = 40, size = 1, dim = Vector3.new(0.25, 0.25, 1.4), part = Enum.PartType.Block, orient = "radial", spin = 0, emit = E(120, 0.4, 1),
+		pos = function(i, n, t)
+			local a = (i / n) * math.pi * 2
+			local open = 0.5 + 0.5 * math.sin(t * 1.5)
+			local r = 1.2 + 1.4 * open
+			return Vector3.new(math.cos(a) * r, 2.2 + 0.4 * open, math.sin(a) * r)
+		end },
+	{ name = "Искры", cnt = 0, emit = E(180, 1, 3) },
+	{ name = "Фонтан", cnt = 0, emit = E(20, 6, 9, Vector3.new(0, -14, 0), 0.35) },
+	{ name = "Облако", cnt = 0, emit = E(180, 0, 0.6, Vector3.zero, 1.1) },
+	{ name = "Вихрь", cnt = 0, emit = E(90, 2, 3, Vector3.new(0, 2, 0), 0.3) },
+}
+
+-- ===== НЕБО, ЦВЕТ, КАЧЕСТВО, КУПОЛ, ПРЕСЕТЫ =====
+local SKIES = {
+	{ name = "День", clock = 14, atmos = { Color = rgb(199, 224, 255), Decay = rgb(106, 112, 125), Glare = 0, Haze = 1 } },
+	{ name = "Закат", clock = 18.4, atmos = { Color = rgb(255, 160, 110), Decay = rgb(110, 60, 80), Glare = 0.5, Haze = 2 } },
+	{ name = "Рассвет", clock = 6, atmos = { Color = rgb(255, 200, 170), Decay = rgb(120, 100, 130), Glare = 0.4, Haze = 2 } },
+	{ name = "Ночь", clock = 0, atmos = { Color = rgb(40, 50, 95), Decay = rgb(10, 10, 30), Glare = 0, Haze = 1 } },
+	{ name = "Космос", clock = 0, atmos = { Color = rgb(70, 25, 110), Decay = rgb(12, 0, 25), Glare = 0.3, Haze = 0 } },
+	{ name = "Туман", clock = 8, atmos = { Color = rgb(190, 200, 210), Decay = rgb(120, 125, 130), Glare = 0, Haze = 4 } },
+	{ name = "Киберпанк", clock = 22, atmos = { Color = rgb(120, 40, 160), Decay = rgb(30, 0, 60), Glare = 0.6, Haze = 1 } },
+	{ name = "Шторм", clock = 12, atmos = { Color = rgb(90, 95, 105), Decay = rgb(40, 42, 50), Glare = 0, Haze = 3 } },
+	{ name = "Океан", clock = 11, atmos = { Color = rgb(80, 170, 210), Decay = rgb(20, 80, 110), Glare = 0.2, Haze = 2.5 } },
+}
+
+local GRADES = {
+	{ name = "Обычный", tint = WHITE, sat = 0, con = 0 },
+	{ name = "Тёплый", tint = rgb(255, 232, 205), sat = 0.15, con = 0.05 },
+	{ name = "Холодный", tint = rgb(200, 225, 255), sat = 0.1, con = 0.05 },
+	{ name = "Неон", tint = rgb(235, 200, 255), sat = 0.6, con = 0.25 },
+	{ name = "Ретро", tint = rgb(255, 215, 160), sat = -0.25, con = 0.2 },
+	{ name = "Ч/Б", tint = WHITE, sat = -1, con = 0.15 },
+	{ name = "Винтаж", tint = rgb(255, 220, 170), sat = -0.1, con = 0.1 },
+	{ name = "Контраст", tint = WHITE, sat = 0.1, con = 0.4 },
+	{ name = "Кино", tint = rgb(230, 240, 255), sat = 0.2, con = 0.2 },
+}
+
+local QUALITY = {
+	{ name = "Низкое", mul = 0.5 },
+	{ name = "Среднее", mul = 1 },
+	{ name = "Высокое", mul = 1.6 },
+}
+
+local COLOR_MODES = {
+	{ name = "Градиент" },
+	{ name = "Пульс" },
+	{ name = "Радуга" },
+	{ name = "Монохром" },
+}
+
+local DOME_STYLES = {
+	{ name = "Купол" },
+	{ name = "Сфера" },
+	{ name = "Спираль" },
+	{ name = "Орбиты" },
+}
+
+local ORBIT_TILT = { 0.35, 1.1, 2.0 }
+local ORBIT_SPD = { 0.4, -0.27, 0.22 }
+
+local SWATCHES = { 0, 0.08, 0.15, 0.33, 0.5, 0.6, 0.75, 0.9 }
+
+local PRESETS = {
+	{ name = "Чилл", aura = "Ocean", shape = "Сфера", sky = "Рассвет", grade = "Тёплый", fog = 0.25, outline = false },
+	{ name = "Киберпанк", aura = "Techno Neon", shape = "Гироскоп", sky = "Киберпанк", grade = "Неон", fog = 0.2, outline = true },
+	{ name = "Ад", aura = "Blood", shape = "Корона", sky = "Шторм", grade = "Контраст", fog = 0.35, outline = true },
+	{ name = "Космос", aura = "Galaxy", shape = "Облако", sky = "Космос", grade = "Обычный", fog = 0.1, outline = false, stars = true, dome = 2 },
+	{ name = "Огненный дракон", aura = "Dragon Fire", shape = "Крылья", sky = "Закат", grade = "Кино", fog = 0.3, outline = true },
+	{ name = "Ледяной дракон", aura = "Dragon Ice", shape = "Крылья", sky = "Ночь", grade = "Холодный", fog = 0.3, outline = true },
+	{ name = "Зимняя ночь", aura = "Frost", shape = "Ореол", sky = "Ночь", grade = "Холодный", fog = 0.2, outline = false, snow = true, stars = true, dome = 1 },
+	{ name = "Метель", aura = "Frost", shape = "Волны", sky = "Туман", grade = "Холодный", fog = 0.4, outline = false, snow = true, dome = 1 },
+	{ name = "Матрица", aura = "Matrix", shape = "Кубы", sky = "Ночь", grade = "Неон", fog = 0.2, outline = true },
+	{ name = "Пульс", aura = "Pulse", shape = "Цветок", sky = "Ночь", grade = "Неон", fog = 0.15, outline = true, stars = true, dome = 4 },
+	{ name = "Северное сияние", aura = "Aurora", shape = "Волны", sky = "Ночь", grade = "Холодный", fog = 0.1, outline = false, stars = true, dome = 4, aurora = true },
+	{ name = "Вулкан", aura = "Lava", shape = "Вихрь", sky = "Шторм", grade = "Контраст", fog = 0.3, outline = true },
+}
+
+local function idxOf(list, name)
+	for i, v in ipairs(list) do
+		if v.name == name then
+			return i
+		end
+	end
+	return 1
+end
+
+local function auraIdxOf(name)
+	for i, a in ipairs(AURAS) do
+		if a.name == name then
+			return i
+		end
+	end
+	return 1
+end
+
+-- ===== СОСТОЯНИЕ =====
+local S = {
+	aura = true, auraIdx = 1, shapeIdx = 1,
+	auraPower = 1, density = 1, quality = 2, speed = 1, spin = 1, orbSize = 1, ringSize = 5.5,
+	parts = true, ring = true, ring2 = false, dust = false, trail = false, outline = false, beatFx = true,
+	flicker = false, jumpBurst = true, partLight = false, lightRange = 6,
+	colorMode = 1, rainbow = false, custom = false, hue = 0.75,
+	cycle = false, cycleSec = 8, cycleShape = false, shapeSec = 10,
+	ghost = false, ghostAmt = 0.5,
+	skyIdx = 1, gradeIdx = 1, time = 14, bright = ORIG_BRIGHT, fog = 0.3, fogPulse = false,
+	bloom = false, bloomPower = 1, rays = false, dof = false,
+	lightGrade = false, lightGradeAmt = 0.5,
+	snow = false, snowAmt = 1, snowSpeed = 1, snowSize = 1, snowWind = 0.6, snowHeight = 45,
+	stars = false, domeStyle = 1, domeRadius = 60, domeAnim = true, shooting = true,
+	starCount = 40, starLink = 0.45, starSpin = 0.15, starBright = 0.7,
+	aurora = false, rainStars = false, rainAmt = 1,
+	fov = 70, notify = true, showHud = true,
+}
+local DEFAULT = table.clone(S)
+local SLOTS = {}
+
+local timeAcc, hue, cycleAcc, shapeAcc, statAcc, pingAcc, shootAcc, rainAcc = 0, 0, 0, 0, 0, 0, 0, 0
+local frameAvg = 1 / 60
+local fpsNow, pingNow, peakFps = 60, 0, 60
+local conns, spinGrads, refreshers, slotBtns, pages, tabBtns, tabBars = {}, {}, {}, {}, {}, {}, {}
+local unloaded = false
+local root = nil
+local fx = { parts = {}, beams = {}, ring = nil, ring2 = nil, attach = nil, feet = nil, aura = nil, trail = nil, hl = nil, dust = nil }
+local activeSlider = nil
+local toastHolder, toastN = nil, 0
+local isOpen = true
+local setOpen
+local subLbl, statLbl, hudLbl, hudBox, floatBtn, main, gui, content, closeBtn
+local W, H = 500, 400
+local snowPart, snowEmBig, snowEmSmall = nil, nil, nil
+local starNodes, starBeams, starDirs, starLayer, starPhase, starLinks = {}, {}, {}, {}, {}, {}
+local shooters = {}
+local rainShooters = {}
+local auroraParts = {}
+local domeCenter = Vector3.zero
+
+local function bind(sig, fn)
+	local c = sig:Connect(fn)
+	table.insert(conns, c)
+	return c
+end
+
+-- ===== ОСВЕЩЕНИЕ =====
+local atmos = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
+atmos.Parent = Lighting
+
+local grade = Instance.new("ColorCorrectionEffect")
+grade.Name = "VH_Grade"
+grade.Parent = Lighting
+
+local bloom = Instance.new("BloomEffect")
+bloom.Name = "VH_Bloom"
+bloom.Enabled = false
+bloom.Size = 24
+bloom.Threshold = 0.9
+bloom.Parent = Lighting
+
+local rays = Instance.new("SunRaysEffect")
+rays.Name = "VH_Rays"
+rays.Enabled = false
+rays.Intensity = 0.15
+rays.Spread = 0.8
+rays.Parent = Lighting
+
+local dof = Instance.new("DepthOfFieldEffect")
+dof.Name = "VH_DOF"
+dof.Enabled = false
+dof.FocusDistance = 12
+dof.InFocusRadius = 14
+dof.FarIntensity = 0.5
+dof.NearIntensity = 0
+dof.Parent = Lighting
+
+-- ===== ХЕЛПЕРЫ =====
+local function tw(obj, t, props, style)
+	local tween = TweenService:Create(obj, TweenInfo.new(t, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+	tween:Play()
+	return tween
+end
+
+local function mk(class, props, parent)
+	local o = Instance.new(class)
+	for k, v in pairs(props or {}) do
+		o[k] = v
+	end
+	if parent then
+		o.Parent = parent
+	end
+	return o
+end
+
+local function corner(p, r)
+	return mk("UICorner", { CornerRadius = UDim.new(0, r or 8) }, p)
+end
+
+local function stroke(p, col, th, tr)
+	return mk("UIStroke", { Color = col or WHITE, Thickness = th or 1, Transparency = tr or 0.85 }, p)
+end
+
+local function label(p, text, pos, size, color, font, ts, align)
+	return mk("TextLabel", {
+		BackgroundTransparency = 1,
+		Position = pos,
+		Size = size,
+		Text = text,
+		TextColor3 = color or THEME.text,
+		Font = font or FM,
+		TextSize = ts or 13,
+		TextXAlignment = align or Enum.TextXAlignment.Left,
+	}, p)
+end
+
+local function hint(p, text, h)
+	local l = label(p, text, UDim2.new(0, 2, 0, 0), UDim2.new(1, -2, 0, h or 40), THEME.dim, FR, 11)
+	l.TextWrapped = true
+	l.TextYAlignment = Enum.TextYAlignment.Top
+	return l
+end
+
+local function addPress(b)
+	local sc = mk("UIScale", {}, b)
+	bind(b.MouseButton1Down, function()
+		tw(sc, 0.08, { Scale = 0.95 })
+	end)
+	bind(b.MouseButton1Up, function()
+		tw(sc, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+	end)
+	bind(b.MouseLeave, function()
+		tw(sc, 0.2, { Scale = 1 })
+	end)
+end
+
+local function hoverFx(b)
+	bind(b.MouseEnter, function()
+		tw(b, 0.15, { BackgroundColor3 = THEME.panelHi })
+	end)
+	bind(b.MouseLeave, function()
+		tw(b, 0.15, { BackgroundColor3 = THEME.panel })
+	end)
+end
+
+local function notify(msg)
+	if not S.notify or not toastHolder then
+		return
+	end
+	toastN += 1
+	local f = mk("Frame", {
+		Size = UDim2.new(1, 0, 0, 28),
+		BackgroundColor3 = THEME.panel,
+		BackgroundTransparency = 1,
+		LayoutOrder = toastN,
+	}, toastHolder)
+	corner(f, 7)
+	local st = stroke(f, THEME.dim, 1, 0.6)
+	local t = label(f, msg, UDim2.fromOffset(12, 0), UDim2.new(1, -24, 1, 0), THEME.text, FM, 12)
+	t.TextTransparency = 1
+	tw(f, 0.25, { BackgroundTransparency = 0.05 })
+	tw(t, 0.25, { TextTransparency = 0 })
+	task.delay(1.6, function()
+		if not f.Parent then
+			return
+		end
+		tw(f, 0.35, { BackgroundTransparency = 1 })
+		tw(t, 0.35, { TextTransparency = 1 })
+		tw(st, 0.35, { Transparency = 1 })
+		task.delay(0.4, function()
+			f:Destroy()
+		end)
+	end)
+end
+
+local function updateSubtitle()
+	if subLbl then
+		subLbl.Text = "Аура: " .. AURAS[S.auraIdx].name .. "\nФорма: " .. SHAPES[S.shapeIdx].name .. "\nКачество: " .. QUALITY[S.quality].name
+	end
+end
+
+local function refreshAll()
+	for _, fn in ipairs(refreshers) do
+		fn()
+	end
+	updateSubtitle()
+end
+
+local function fpsColor(v)
+	if v >= 50 then
+		return THEME.good
+	elseif v >= 30 then
+		return THEME.warn
+	end
+	return THEME.bad
+end
+
+local function pingColor(v)
+	if v <= 80 then
+		return THEME.good
+	elseif v <= 150 then
+		return THEME.warn
+	end
+	return THEME.bad
+end
+
+local function getPing()
+	local ok, v = pcall(function()
+		return StatsService.Network.ServerStatsItem["Data Ping"]:GetValue()
+	end)
+	if ok and typeof(v) == "number" then
+		return v
+	end
+	local ok2, p = pcall(function()
+		return player:GetNetworkPing() * 1000
+	end)
+	if ok2 and typeof(p) == "number" then
+		return p
+	end
+	return 0
+end
+
+local function updateStats()
+	if hudLbl then
+		hudLbl.Text = "FPS " .. fpsNow .. "   PING " .. pingNow .. " ms"
+		hudLbl.TextColor3 = fpsColor(fpsNow)
+	end
+	if statLbl then
+		statLbl.Text = string.format("FPS: %d (пик %d)\nПинг: %d мс\nДеталей: %d\nЗвёзд: %d\nКадр: %.1f мс", fpsNow, peakFps, pingNow, #fx.parts, #starNodes, frameAvg * 1000)
+		statLbl.TextColor3 = pingColor(pingNow)
+	end
+end
+
+-- ===== НАСТРОЙКИ СРЕДЫ =====
+local function applySky(i)
+	S.skyIdx = i
+	local s = SKIES[i]
+	S.time = s.clock
+	tw(atmos, 1.2, {
+		Color = s.atmos.Color,
+		Decay = s.atmos.Decay,
+		Glare = s.atmos.Glare,
+		Haze = s.atmos.Haze,
+		Density = S.fog,
+	})
+	tw(Lighting, 1.5, { ClockTime = s.clock })
+	refreshAll()
+end
+
+local function applyFog()
+	if not S.fogPulse then
+		tw(atmos, 0.4, { Density = S.fog })
+	end
+end
+
+local function applyGrade(i)
+	S.gradeIdx = i
+	local g = GRADES[i]
+	tw(grade, 0.8, { TintColor = g.tint, Saturation = g.sat, Contrast = g.con })
+end
+
+local function applyPost()
+	bloom.Enabled = S.bloom
+	tw(bloom, 0.4, { Intensity = 0.8 * S.bloomPower })
+	rays.Enabled = S.rays
+	dof.Enabled = S.dof
+end
+
+local function applyLight()
+	Lighting.Brightness = S.bright
+end
+
+local function applyFov()
+	local cam = workspace.CurrentCamera
+	if cam then
+		cam.FieldOfView = S.fov
+	end
+end
+
+local function applyGhost()
+	local c = player.Character
+	if not c then
+		return
+	end
+	local amt = S.ghost and S.ghostAmt or 0
+	for _, d in ipairs(c:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.LocalTransparencyModifier = amt
+		end
+	end
+end
+
+-- ===== СНЕГ =====
+local function buildSnow()
+	if snowPart then
+		snowPart:Destroy()
+		snowPart, snowEmBig, snowEmSmall = nil, nil, nil
+	end
+	if not S.snow then
+		return
+	end
+	snowPart = mk("Part", {
+		Name = "VH_Snow",
+		Size = Vector3.new(240, 1, 240),
+		Transparency = 1,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, workspace)
+
+	snowEmBig = mk("ParticleEmitter", {
+		Texture = TEX.spark,
+		LightEmission = 0.7,
+		Color = ColorSequence.new(WHITE, rgb(220, 235, 255)),
+		Lifetime = NumberRange.new(8, 10),
+		Speed = NumberRange.new(3, 5),
+		SpreadAngle = Vector2.new(8, 8),
+		EmissionDirection = Enum.NormalId.Bottom,
+		Rotation = NumberRange.new(0, 360),
+		RotSpeed = NumberRange.new(-50, 50),
+		Size = NumberSequence.new(0.35),
+		Transparency = NumberSequence.new(0.15),
+		Rate = 22,
+	}, snowPart)
+
+	snowEmSmall = mk("ParticleEmitter", {
+		Texture = TEX.spark,
+		LightEmission = 0.9,
+		Color = ColorSequence.new(WHITE),
+		Lifetime = NumberRange.new(7, 9),
+		Speed = NumberRange.new(4, 6),
+		SpreadAngle = Vector2.new(10, 10),
+		EmissionDirection = Enum.NormalId.Bottom,
+		Size = NumberSequence.new(0.12),
+		Transparency = NumberSequence.new(0.3),
+		Rate = 90,
+	}, snowPart)
+
+	pcall(function()
+		snowEmBig.Shape = Enum.ParticleEmitterShape.Box
+		snowEmSmall.Shape = Enum.ParticleEmitterShape.Box
+	end)
+end
+
+-- ===== КУПОЛ =====
+local function dirForStyle(style, i, n)
+	if style == 1 then
+		local y = 0.12 + 0.88 * (i - 0.5) / n
+		local r = math.sqrt(math.max(0, 1 - y * y))
+		local th = GOLD * i
+		return Vector3.new(math.cos(th) * r, y, math.sin(th) * r)
+	elseif style == 2 then
+		local y = 1 - 2 * (i - 0.5) / n
+		local r = math.sqrt(math.max(0, 1 - y * y))
+		local th = GOLD * i
+		return Vector3.new(math.cos(th) * r, y, math.sin(th) * r)
+	elseif style == 3 then
+		local f = (i - 1) / math.max(n - 1, 1)
+		local a = i * 2.399
+		return Vector3.new(math.cos(a), 0.1 + 0.9 * f, math.sin(a)).Unit
+	end
+	return Vector3.new(0, 1, 0)
+end
+
+local function makeBeam(i, j, col)
+	local a0 = starNodes[i]:FindFirstChild("VH_S")
+	local a1 = starNodes[j]:FindFirstChild("VH_S")
+	if a0 and a1 then
+		local bm = mk("Beam", {
+			Attachment0 = a0,
+			Attachment1 = a1,
+			Width0 = 0.07,
+			Width1 = 0.07,
+			FaceCamera = true,
+			LightEmission = 1,
+			Color = ColorSequence.new(col),
+			Transparency = NumberSequence.new(0.5),
+		}, starNodes[i])
+		table.insert(starBeams, bm)
+		table.insert(starLinks, { i, j })
+	end
+end
+
+local function buildStars()
+	for _, p in ipairs(starNodes) do
+		p:Destroy()
+	end
+	for _, b in ipairs(starBeams) do
+		b:Destroy()
+	end
+	starNodes, starBeams, starDirs, starLayer, starPhase, starLinks = {}, {}, {}, {}, {}, {}
+	if not S.stars then
+		return
+	end
+	local n = S.starCount
+	local style = S.domeStyle
+	local perLayer = math.max(math.ceil(n / 3), 1)
+
+	for i = 1, n do
+		starDirs[i] = dirForStyle(style, i, n)
+		starLayer[i] = (i - 1) % 3 + 1
+		starPhase[i] = (math.floor((i - 1) / 3) / perLayer) * math.pi * 2
+		local p = mk("Part", {
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 0.45,
+			Material = Enum.Material.Neon,
+			Color = WHITE,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, workspace)
+		mk("Attachment", { Name = "VH_S" }, p)
+		table.insert(starNodes, p)
+	end
+
+	if style == 4 then
+		for i = 1, n do
+			local j = i + 3
+			if j > n then
+				j = starLayer[i]
+			end
+			if j ~= i and j >= 1 and j <= n then
+				makeBeam(i, j, WHITE)
+			end
+		end
+	else
+		for i = 1, n do
+			for j = i + 1, n do
+				if (starDirs[i] - starDirs[j]).Magnitude < S.starLink then
+					makeBeam(i, j, WHITE)
+				end
+			end
+		end
+	end
+end
+
+local function spawnShooter(col)
+	local function rnd()
+		return math.random() * 2 - 1
+	end
+	local R = S.domeRadius * 0.95
+	local a = Vector3.new(rnd(), 0.35 + math.random() * 0.65, rnd()).Unit
+	local b = (a + Vector3.new(rnd() * 0.7, -0.3 - math.random() * 0.4, rnd() * 0.7)).Unit
+	if b.Y < 0.05 then
+		b = Vector3.new(b.X, 0.05, b.Z).Unit
+	end
+	local part = mk("Part", {
+		Size = Vector3.one * 0.2,
+		Transparency = 1,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, workspace)
+	local a0 = mk("Attachment", { Position = Vector3.new(0, 0.4, 0) }, part)
+	local a1 = mk("Attachment", { Position = Vector3.new(0, -0.4, 0) }, part)
+	mk("Trail", {
+		Attachment0 = a0,
+		Attachment1 = a1,
+		Lifetime = 0.7,
+		LightEmission = 1,
+		Color = ColorSequence.new(WHITE, col),
+		Transparency = NumberSequence.new(0, 1),
+		WidthScale = NumberSequence.new(1, 0),
+	}, part)
+	table.insert(shooters, { p = part, a = a * R, b = b * R, t0 = timeAcc, dur = 0.9 })
+end
+
+local function updateDome(c1, animT)
+	local R = S.domeRadius
+	local style = S.domeStyle
+	local ang = animT * S.starSpin
+	local ca, sa = math.cos(ang), math.sin(ang)
+	local tilt = 0.25 * math.sin(animT * 0.3)
+	local ct, st = math.cos(tilt), math.sin(tilt)
+	local breath = 1 + 0.04 * math.sin(animT * 1.5)
+	local starCol = c1:Lerp(WHITE, 0.5)
+
+	for i, p in ipairs(starNodes) do
+		local pos
+		if style == 4 then
+			local L = starLayer[i]
+			local tl = ORBIT_TILT[L]
+			local a = starPhase[i] + animT * ORBIT_SPD[L] * S.speed
+			local dx = math.cos(a)
+			local dy = math.sin(a) * math.cos(tl)
+			local dz = math.sin(a) * math.sin(tl)
+			local x1 = dx * ca - dz * sa
+			local z1 = dx * sa + dz * ca
+			pos = Vector3.new(x1, dy, z1) * R
+		else
+			local d = starDirs[i]
+			local x1 = d.X * ca - d.Z * sa
+			local z1 = d.X * sa + d.Z * ca
+			local y1 = d.Y
+			local y2 = y1 * ct - z1 * st
+			local z2 = y1 * st + z1 * ct
+			pos = Vector3.new(x1, y2, z2) * R * breath
+		end
+		p.CFrame = CFrame.new(domeCenter + pos)
+		local w = 0.5 + 0.5 * math.sin(animT * (1.2 + (i % 5) * 0.3) + i * 0.35)
+		p.Transparency = 1 - S.starBright * (0.45 + 0.55 * w)
+		p.Color = starCol
+	end
+
+	for _, bm in ipairs(starBeams) do
+		local tr = 0.55 + 0.35 * math.sin(animT * 2 + bm.Width0 * 90)
+		bm.Color = ColorSequence.new(starCol)
+		bm.Transparency = NumberSequence.new(math.clamp(1 - S.starBright * tr, 0, 1))
+	end
+end
+
+local function updateShooters(dt, c1)
+	if S.stars and S.shooting then
+		shootAcc += dt
+		if shootAcc > 3.2 then
+			shootAcc = 0
+			spawnShooter(c1)
+		end
+	end
+	for k = #shooters, 1, -1 do
+		local s = shooters[k]
+		local prog = (timeAcc - s.t0) / s.dur
+		if prog >= 1 then
+			s.p:Destroy()
+			table.remove(shooters, k)
+		else
+			s.p.CFrame = CFrame.new(domeCenter + s.a:Lerp(s.b, prog))
+		end
+	end
+end
+
+local function clearShooters()
+	for _, s in ipairs(shooters) do
+		if s.p then
+			s.p:Destroy()
+		end
+	end
+	shooters = {}
+end
+
+-- ===== ПОЛЯРНОЕ СИЯНИЕ =====
+local function buildAurora()
+	for _, p in ipairs(auroraParts) do
+		p:Destroy()
+	end
+	auroraParts = {}
+	if not S.aurora then
+		return
+	end
+	for i = 1, 6 do
+		local p = mk("Part", {
+			Size = Vector3.one * 0.1,
+			Transparency = 1,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, workspace)
+		local a0 = mk("Attachment", { Name = "VH_AU" }, p)
+		local a1 = mk("Attachment", { Name = "VH_AU2", Position = Vector3.new(0, -6, 0) }, p)
+		mk("Beam", {
+			Attachment0 = a0,
+			Attachment1 = a1,
+			Width0 = 4,
+			Width1 = 1,
+			LightEmission = 1,
+			FaceCamera = true,
+			Color = ColorSequence.new(WHITE),
+			Transparency = NumberSequence.new(0.6),
+		}, p)
+		table.insert(auroraParts, p)
+	end
+end
+
+local function updateAurora(c1, c2)
+	if not S.aurora or #auroraParts == 0 then
+		return
+	end
+	for i, p in ipairs(auroraParts) do
+		local a = timeAcc * 0.5 + i * 0.7
+		local x = math.cos(a) * S.domeRadius * 0.8
+		local z = math.sin(a * 0.8) * S.domeRadius * 0.8
+		local y = S.domeRadius * (0.85 + 0.1 * math.sin(a * 1.3))
+		p.CFrame = CFrame.new(domeCenter + Vector3.new(x, y, z))
+		local bm = p:FindFirstChildOfClass("Beam")
+		if bm then
+			local k = 0.5 + 0.5 * math.sin(timeAcc * 0.8 + i)
+			bm.Color = ColorSequence.new(c1:Lerp(c2, k), c2:Lerp(c1, k))
+			bm.Transparency = NumberSequence.new(0.45 + 0.3 * math.sin(timeAcc * 1.1 + i * 1.7))
+		end
+	end
+end
+
+-- ===== ЗВЁЗДНЫЙ ДОЖДЬ =====
+local function spawnRainStar(c1, base)
+	local ang = math.random() * math.pi * 2
+	local r = 4 + math.random() * 22
+	local start = base + Vector3.new(math.cos(ang) * r, 30 + math.random() * 10, math.sin(ang) * r)
+	local stop = start + Vector3.new(0, -26, 0)
+	local part = mk("Part", {
+		Size = Vector3.one * 0.2,
+		Transparency = 1,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, workspace)
+	local a0 = mk("Attachment", { Position = Vector3.new(0, 0.3, 0) }, part)
+	local a1 = mk("Attachment", { Position = Vector3.new(0, -0.3, 0) }, part)
+	mk("Trail", {
+		Attachment0 = a0,
+		Attachment1 = a1,
+		Lifetime = 0.5,
+		LightEmission = 1,
+		Color = ColorSequence.new(WHITE, c1),
+		Transparency = NumberSequence.new(0, 1),
+		WidthScale = NumberSequence.new(0.8, 0),
+	}, part)
+	table.insert(rainShooters, { p = part, a = start, b = stop, t0 = timeAcc, dur = 1.1 })
+end
+
+local function updateRain(dt, c1, base)
+	if S.rainStars then
+		rainAcc += dt
+		local interval = 0.25 / math.max(S.rainAmt, 0.1)
+		while rainAcc >= interval do
+			rainAcc -= interval
+			spawnRainStar(c1, base)
+		end
+	end
+	for k = #rainShooters, 1, -1 do
+		local s = rainShooters[k]
+		local prog = (timeAcc - s.t0) / s.dur
+		if prog >= 1 then
+			s.p:Destroy()
+			table.remove(rainShooters, k)
+		else
+			s.p.CFrame = CFrame.new(s.a:Lerp(s.b, prog))
+		end
+	end
+end
+
+local function clearRain()
+	for _, s in ipairs(rainShooters) do
+		if s.p then
+			s.p:Destroy()
+		end
+	end
+	rainShooters = {}
+end
+
+-- ===== ЭФФЕКТЫ ПЕРСОНАЖА =====
+local function clearFx()
+	for _, p in ipairs(fx.parts) do
+		p:Destroy()
+	end
+	fx.parts = {}
+	fx.beams = {}
+	for _, key in ipairs({ "ring", "ring2", "attach", "feet", "hl" }) do
+		if fx[key] then
+			fx[key]:Destroy()
+			fx[key] = nil
+		end
+	end
+	fx.aura = nil
+	fx.trail = nil
+	fx.dust = nil
+end
+
+local function effDensity()
+	return S.density * QUALITY[S.quality].mul
+end
+
+local function buildParts()
+	for _, p in ipairs(fx.parts) do
+		p:Destroy()
+	end
+	fx.parts = {}
+	fx.beams = {}
+	if not root then
+		return
+	end
+	local sh = SHAPES[S.shapeIdx]
+	if sh.cnt == 0 then
+		return
+	end
+	local n = math.max(1, math.floor(sh.cnt * effDensity() + 0.5))
+	local dim = sh.dim or Vector3.one
+	for i = 1, n do
+		local p = mk("Part", {
+			Shape = sh.part or Enum.PartType.Ball,
+			Material = Enum.Material.Neon,
+			Size = dim * sh.size,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, workspace)
+		if sh.mesh then
+			mk("SpecialMesh", { MeshType = sh.mesh, Scale = Vector3.one }, p)
+		end
+		if sh.beam then
+			mk("Attachment", { Name = "VH_A" }, p)
+		end
+		mk("PointLight", { Range = S.lightRange, Brightness = 0.8, Shadows = false, Enabled = S.partLight }, p)
+		table.insert(fx.parts, p)
+	end
+
+	if sh.beam then
+		local links = {}
+		for i = 1, n do
+			table.insert(links, { i, i % n + 1 })
+			if sh.beam == 2 then
+				table.insert(links, { i, (i + 2) % n + 1 })
+			end
+		end
+		for _, l in ipairs(links) do
+			local pa = fx.parts[l[1]]
+			local pb = fx.parts[l[2]]
+			local a0 = pa and pa:FindFirstChild("VH_A")
+			local a1 = pb and pb:FindFirstChild("VH_A")
+			if a0 and a1 then
+				local bm = mk("Beam", {
+					Attachment0 = a0,
+					Attachment1 = a1,
+					Width0 = 0.08,
+					Width1 = 0.08,
+					LightEmission = 1,
+					FaceCamera = true,
+					Transparency = NumberSequence.new(0.2),
+				}, pa)
+				table.insert(fx.beams, bm)
+			end
+		end
+	end
+end
+
+local function applyEmitter()
+	if not fx.aura then
+		return
+	end
+	local a = AURAS[S.auraIdx]
+	local sh = SHAPES[S.shapeIdx]
+	fx.aura.Texture = a.tex or TEX.spark
+	fx.aura.Lifetime = NumberRange.new(0.8, 1.5)
+	fx.aura.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, sh.emit.size),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	fx.aura.Speed = sh.emit.speed
+	fx.aura.SpreadAngle = Vector2.new(sh.emit.spread, sh.emit.spread)
+	fx.aura.Acceleration = sh.emit.accel + (a.accel or Vector3.zero)
+end
+
+local function buildFx(c)
+	clearFx()
+	if not root then
+		return
+	end
+
+	fx.attach = mk("Attachment", {}, root)
+	fx.aura = mk("ParticleEmitter", {
+		LightEmission = 1,
+		Rate = 60,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+	}, fx.attach)
+	applyEmitter()
+
+	fx.dust = mk("ParticleEmitter", {
+		Texture = TEX.spark,
+		LightEmission = 1,
+		Rate = 10,
+		Lifetime = NumberRange.new(2, 3.5),
+		Speed = NumberRange.new(0.3, 0.9),
+		SpreadAngle = Vector2.new(180, 180),
+		Size = NumberSequence.new(0.14),
+		Transparency = NumberSequence.new(0.35),
+		Enabled = false,
+	}, fx.attach)
+
+	fx.feet = mk("Attachment", { Position = Vector3.new(0, -2.8, 0) }, root)
+	fx.trail = mk("ParticleEmitter", {
+		Texture = TEX.spark,
+		LightEmission = 1,
+		Lifetime = NumberRange.new(0.5, 0.9),
+		Speed = NumberRange.new(0, 0.2),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.7), NumberSequenceKeypoint.new(1, 0) }),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) }),
+		Rate = 0,
+	}, fx.feet)
+
+	fx.ring = mk("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.12, 5.5, 5.5),
+		Material = Enum.Material.Neon,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, workspace)
+
+	fx.ring2 = mk("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.1, 4, 4),
+		Material = Enum.Material.Neon,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, workspace)
+
+	if c then
+		fx.hl = mk("Highlight", {
+			FillTransparency = 1,
+			OutlineTransparency = 0,
+			DepthMode = Enum.HighlightDepthMode.Occluded,
+			Enabled = false,
+		}, c)
+	end
+
+	buildParts()
+end
+
+local function applyAll()
+	applySky(S.skyIdx)
+	applyGrade(S.gradeIdx)
+	applyPost()
+	applyFog()
+	applyLight()
+	applyFov()
+	applyEmitter()
+	applyGhost()
+	buildParts()
+	buildSnow()
+	buildStars()
+	buildAurora()
+	clearRain()
+	refreshAll()
+end
+
+local function applyPreset(p)
+	S.auraIdx = auraIdxOf(p.aura)
+	S.shapeIdx = idxOf(SHAPES, p.shape)
+	S.skyIdx = idxOf(SKIES, p.sky)
+	S.gradeIdx = idxOf(GRADES, p.grade)
+	S.bloom = true
+	S.fog = p.fog
+	S.outline = p.outline
+	S.snow = p.snow or false
+	S.stars = p.stars or false
+	S.domeStyle = p.dome or S.domeStyle
+	S.aurora = p.aurora or false
+	S.rainbow = false
+	S.custom = false
+	applyAll()
+	notify("Пресет: " .. p.name)
+end
+
+local function nextAura(silent)
+	S.auraIdx = S.auraIdx % #AURAS + 1
+	applyEmitter()
+	refreshAll()
+	if not silent then
+		notify("Аура: " .. AURAS[S.auraIdx].name)
+	end
+end
+
+local function nextShape()
+	S.shapeIdx = S.shapeIdx % #SHAPES + 1
+	applyEmitter()
+	buildParts()
+	refreshAll()
+	notify("Форма: " .. SHAPES[S.shapeIdx].name)
+end
+
+local function nextColorMode()
+	S.colorMode = S.colorMode % #COLOR_MODES + 1
+	refreshAll()
+	notify("Цвет: " .. COLOR_MODES[S.colorMode].name)
+end
+
+local function randomize()
+	S.auraIdx = math.random(#AURAS)
+	S.shapeIdx = math.random(#SHAPES)
+	S.skyIdx = math.random(#SKIES)
+	S.gradeIdx = math.random(#GRADES)
+	S.colorMode = math.random(#COLOR_MODES)
+	S.rainbow = math.random() < 0.2
+	applyAll()
+	notify("Случайный стиль")
+end
+
+local function updateSlots()
+	for i, b in ipairs(slotBtns) do
+		b.Text = SLOTS[i] and ("Слот " .. i .. " (занят)") or ("Слот " .. i .. " (пусто)")
+	end
+end
+
+local function saveSlot(i)
+	SLOTS[i] = table.clone(S)
+	updateSlots()
+	notify("Слот " .. i .. " сохранён")
+end
+
+local function loadSlot(i)
+	if not SLOTS[i] then
+		notify("Слот " .. i .. " пуст")
+		return
+	end
+	for k, v in pairs(SLOTS[i]) do
+		S[k] = v
+	end
+	applyAll()
+	notify("Слот " .. i .. " загружен")
+end
+
+local function getColors()
+	local aura = AURAS[S.auraIdx]
+	local c1, c2, c3 = aura.c1, aura.c2, aura.c3
+	if S.custom then
+		c1 = hsv(S.hue, 0.75, 1)
+		c2 = hsv((S.hue + 0.12) % 1, 0.9, 0.6)
+		c3 = nil
+	end
+	local mode = S.colorMode
+	if S.rainbow or mode == 3 then
+		c1 = hsv(hue, 0.75, 1)
+		c2 = hsv((hue + 0.33) % 1, 0.75, 1)
+		c3 = nil
+	elseif mode == 2 then
+		local k = 0.5 + 0.5 * math.sin(timeAcc * 3)
+		c1 = c1:Lerp(WHITE, k * 0.45)
+	elseif mode == 4 then
+		c2 = c1
+		c3 = nil
+	end
+	return c1, c2, c3, aura
+end
+
+-- ===== ГЛАВНЫЙ ЦИКЛ =====
+bind(RunService.Heartbeat, function(dt)
+	if unloaded then
+		return
+	end
+	timeAcc += dt
+	hue = (hue + dt * 0.2) % 1
+	frameAvg = frameAvg * 0.95 + dt * 0.05
+
+	statAcc += dt
+	if statAcc >= 0.5 then
+		statAcc = 0
+		fpsNow = math.floor(1 / math.max(frameAvg, 0.001) + 0.5)
+		if fpsNow > peakFps then
+			peakFps = fpsNow
+		end
+		pingAcc += 0.5
+		if pingAcc >= 1 then
+			pingAcc = 0
+			pingNow = math.floor(getPing() + 0.5)
+		end
+		updateStats()
+	end
+
+	for i, g in ipairs(spinGrads) do
+		g.Rotation = (timeAcc * 40 + i * 90) % 360
+	end
+
+	if S.cycle then
+		cycleAcc += dt
+		if cycleAcc >= S.cycleSec then
+			cycleAcc = 0
+			nextAura(true)
+		end
+	end
+
+	if S.cycleShape then
+		shapeAcc += dt
+		if shapeAcc >= S.shapeSec then
+			shapeAcc = 0
+			S.shapeIdx = S.shapeIdx % #SHAPES + 1
+			applyEmitter()
+			buildParts()
+			refreshAll()
+		end
+	end
+
+	local cam = workspace.CurrentCamera
+	local c1, c2, c3, aura = getColors()
+	local beat = 0.5 + 0.5 * math.sin(timeAcc * (aura.beat or 2) * S.speed)
+	local hasRoot = root and root.Parent
+	local basePos = (hasRoot and root.Position) or (cam and cam.CFrame.Position) or Vector3.zero
+
+	if snowPart and snowEmBig and snowEmSmall then
+		snowPart.CFrame = CFrame.new(basePos + Vector3.new(0, S.snowHeight, 0))
+		local wx = math.sin(timeAcc * 0.6) * S.snowWind * 3
+		local wz = math.cos(timeAcc * 0.45) * S.snowWind * 2
+		local acc = Vector3.new(wx, -0.8, wz)
+		snowEmBig.Acceleration = acc
+		snowEmSmall.Acceleration = acc
+		snowEmBig.Rate = 22 * S.snowAmt
+		snowEmSmall.Rate = 90 * S.snowAmt
+		snowEmBig.Speed = NumberRange.new(3 * S.snowSpeed, 5 * S.snowSpeed)
+		snowEmSmall.Speed = NumberRange.new(4 * S.snowSpeed, 6 * S.snowSpeed)
+		snowEmBig.Size = NumberSequence.new(0.35 * S.snowSize)
+		snowEmSmall.Size = NumberSequence.new(0.12 * S.snowSize)
+	end
+
+	domeCenter = (hasRoot and root.Position + Vector3.new(0, 10, 0)) or basePos
+	if #starNodes > 0 then
+		local animT = S.domeAnim and timeAcc or 0
+		updateDome(c1, animT)
+		updateShooters(dt, c1)
+	elseif #shooters > 0 then
+		clearShooters()
+	end
+
+	updateAurora(c1, c2)
+	updateRain(dt, c1, basePos)
+
+	if S.fogPulse then
+		atmos.Density = S.fog * (0.85 + 0.15 * math.sin(timeAcc * 0.8))
+	end
+
+	if not hasRoot then
+		return
+	end
+
+	local sh = SHAPES[S.shapeIdx]
+	local cf = root.CFrame
+	local dens = effDensity()
+
+	if fx.aura then
+		fx.aura.Enabled = S.aura
+		if c3 then
+			fx.aura.Color = ColorSequence.new({ kp(0, c1), kp(0.5, c3), kp(1, c2) })
+		else
+			fx.aura.Color = ColorSequence.new(c1, c2)
+		end
+		local boost = S.beatFx and (0.8 + 0.4 * beat) or 1
+		fx.aura.Rate = math.min(aura.rate * dens * S.auraPower * boost, 320)
+	end
+
+	if fx.dust then
+		fx.dust.Enabled = S.dust
+		fx.dust.Color = ColorSequence.new(c2, c1)
+	end
+
+	if fx.trail then
+		local v = root.AssemblyLinearVelocity
+		local spd = Vector3.new(v.X, 0, v.Z).Magnitude
+		fx.trail.Enabled = S.trail
+		fx.trail.Rate = S.trail and math.clamp(spd * 5, 0, 150) or 0
+		fx.trail.Color = ColorSequence.new(c2, c1)
+	end
+
+	if fx.ring then
+		fx.ring.Color = c1
+		fx.ring.Size = Vector3.new(0.12, S.ringSize, S.ringSize)
+		fx.ring.Transparency = S.ring and (0.25 + beat * 0.5) or 1
+		fx.ring.CFrame = cf * CFrame.new(0, -2.9, 0) * CFrame.Angles(0, 0, math.rad(90))
+	end
+
+	if fx.ring2 then
+		fx.ring2.Color = c2
+		fx.ring2.Size = Vector3.new(0.1, S.ringSize * 0.7, S.ringSize * 0.7)
+		fx.ring2.Transparency = S.ring2 and (0.4 + (1 - beat) * 0.4) or 1
+		fx.ring2.CFrame = cf * CFrame.new(0, -2.9, 0) * CFrame.Angles(0, timeAcc * 0.8, math.rad(90))
+	end
+
+	if fx.hl then
+		fx.hl.Enabled = S.outline
+		fx.hl.OutlineColor = c1
+		fx.hl.FillColor = c2
+		fx.hl.FillTransparency = S.outline and (0.75 + 0.2 * (1 - beat)) or 1
+	end
+
+	if S.lightGrade then
+		local base = GRADES[S.gradeIdx]
+		local amt = S.lightGradeAmt
+		local target = base.tint:Lerp(c1, amt * 0.55)
+		grade.TintColor = grade.TintColor:Lerp(target, 0.12)
+		grade.Saturation = grade.Saturation + ((base.sat + amt * 0.25) - grade.Saturation) * 0.12
+		local ambTarget = ORIG_AMB:Lerp(c1, amt * 0.3)
+		Lighting.OutdoorAmbient = Lighting.OutdoorAmbient:Lerp(ambTarget, 0.1)
+	end
+
+	local n = #fx.parts
+	if n > 0 and sh.pos then
+		local t = timeAcc * S.speed
+		local sp = (sh.spin or 0.5) * S.spin
+		local forceField = aura.mat == Enum.Material.ForceField
+		local pulseK = forceField and (0.7 + 0.6 * beat) or 1
+		local scale = sh.size * S.orbSize * (S.beatFx and (0.85 + 0.35 * beat) or 1) * pulseK
+		local dim = sh.dim or Vector3.one
+		local mat = aura.mat or Enum.Material.Neon
+		for i, p in ipairs(fx.parts) do
+			local off = sh.pos(i, n, t)
+			local world = cf:PointToWorldSpace(off)
+			local o = sh.orient
+			if o == "yaw" then
+				p.CFrame = CFrame.new(world) * CFrame.Angles(0, timeAcc * sp + math.atan2(off.X, off.Z), 0)
+			elseif o == "vert" then
+				p.CFrame = CFrame.new(world) * CFrame.Angles(0, timeAcc * sp, math.rad(90))
+			elseif o == "flat" then
+				p.CFrame = CFrame.lookAt(world, cf.Position) * CFrame.Angles(0, 0, timeAcc * sp)
+			elseif o == "radial" then
+				local dir = cf:VectorToWorldSpace(Vector3.new(off.X, 0, off.Z))
+				if dir.Magnitude < 0.01 then
+					dir = Vector3.new(0, 0, 1)
+				end
+				p.CFrame = CFrame.lookAt(world, world + dir)
+			else
+				p.CFrame = CFrame.new(world) * CFrame.Angles(timeAcc * sp, timeAcc * sp * 0.7, 0)
+			end
+			p.Size = dim * scale
+			p.Material = mat
+			if c3 and i % 3 == 0 then
+				p.Color = c3
+			else
+				p.Color = (i % 2 == 0) and c2 or c1
+			end
+			if not S.parts then
+				p.Transparency = 1
+			elseif S.flicker then
+				p.Transparency = 0.1 + 0.35 * math.abs(math.sin(timeAcc * 12 + i * 1.7))
+			else
+				p.Transparency = 0
+			end
+			local pl = p:FindFirstChildOfClass("PointLight")
+			if pl then
+				pl.Enabled = S.partLight and S.parts
+				pl.Color = p.Color
+				pl.Range = S.lightRange
+			end
+		end
+		for _, b in ipairs(fx.beams) do
+			b.Enabled = S.parts
+			b.Color = ColorSequence.new(c1, c2)
+		end
+	end
+end)
+
+local function onCharacter(c)
+	root = c:WaitForChild("HumanoidRootPart", 5)
+	if root then
+		buildFx(c)
+		applyGhost()
+		local hum = c:WaitForChild("Humanoid", 5)
+		if hum then
+			bind(hum.StateChanged, function(_, new)
+				if new == Enum.HumanoidStateType.Jumping and S.jumpBurst and fx.aura then
+					fx.aura:Emit(35)
+				end
+			end)
+		end
+	end
+end
+
+bind(player.CharacterAdded, onCharacter)
+bind(player.CharacterRemoving, function()
+	clearFx()
+	root = nil
+end)
+if player.Character then
+	task.spawn(onCharacter, player.Character)
+end
+
+-- ===== UI: ОКНО =====
+gui = mk("ScreenGui", { Name = "VisualHub", ResetOnSpawn = false, IgnoreGuiInset = true }, player:WaitForChild("PlayerGui"))
+
+local camUI = workspace.CurrentCamera
+local vp = camUI and camUI.ViewportSize or Vector2.new(800, 600)
+W = math.min(500, vp.X - 20)
+H = math.min(400, vp.Y - 70)
+
+main = mk("CanvasGroup", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	Size = UDim2.fromOffset(W, H),
+	BackgroundColor3 = THEME.bg,
+	GroupTransparency = 0,
+}, gui)
+corner(main, 14)
+stroke(main, WHITE, 1, 0.8)
+
+local header = mk("TextButton", {
+	Size = UDim2.new(1, 0, 0, 40),
+	BackgroundTransparency = 1,
+	Text = "",
+	AutoButtonColor = false,
+}, main)
+label(header, "VISUAL HUB", UDim2.fromOffset(16, 0), UDim2.new(1, -60, 1, 0), THEME.text, FB, 13)
+
+closeBtn = mk("TextButton", {
+	Size = UDim2.fromOffset(26, 26),
+	Position = UDim2.new(1, -34, 0, 7),
+	BackgroundColor3 = THEME.panel,
+	Text = "X",
+	TextColor3 = THEME.dim,
+	Font = FB,
+	TextSize = 12,
+	AutoButtonColor = false,
+}, header)
+corner(closeBtn, 7)
+addPress(closeBtn)
+
+mk("Frame", {
+	Position = UDim2.new(0, 0, 0, 40),
+	Size = UDim2.new(1, 0, 0, 1),
+	BackgroundColor3 = WHITE,
+	BackgroundTransparency = 0.9,
+	BorderSizePixel = 0,
+}, main)
+
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+bind(header.InputBegan, function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = i.Position
+		startPos = main.Position
+	end
+end)
+
+bind(UIS.InputChanged, function(i)
+	local isMove = i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch
+	if dragging and isMove then
+		local d = i.Position - dragStart
+		main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+	end
+	if activeSlider and isMove then
+		activeSlider(i.Position.X)
+	end
+end)
+
+bind(UIS.InputEnded, function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+		activeSlider = nil
+	end
+end)
+
+local sidebar = mk("Frame", {
+	Position = UDim2.fromOffset(0, 41),
+	Size = UDim2.new(0, 120, 1, -41),
+	BackgroundColor3 = THEME.panel,
+	BorderSizePixel = 0,
+}, main)
+
+local TABS = { "Визуалы", "Мир", "Экран", "Система" }
+
+subLbl = label(sidebar, "", UDim2.new(0, 14, 1, -70), UDim2.new(1, -20, 0, 60), THEME.dim, FR, 11)
+subLbl.TextWrapped = true
+subLbl.TextYAlignment = Enum.TextYAlignment.Bottom
+
+content = mk("Frame", {
+	Position = UDim2.fromOffset(120, 41),
+	Size = UDim2.new(1, -120, 1, -41),
+	BackgroundTransparency = 1,
+}, main)
+
+local function selectTab(i)
+	for j, b in ipairs(tabBtns) do
+		tw(b, 0.25, { TextColor3 = (j == i) and WHITE or THEME.dim })
+		tw(tabBars[j], 0.3, { BackgroundTransparency = (j == i) and 0 or 1, Size = UDim2.fromOffset(2, (j == i) and 18 or 8) })
+	end
+	for j, p in ipairs(pages) do
+		p.Visible = (j == i)
+		if j == i then
+			p.Position = UDim2.fromOffset(14, 0)
+			tw(p, 0.3, { Position = UDim2.fromOffset(0, 0) })
+		end
+	end
+end
+
+for i, name in ipairs(TABS) do
+	local b = mk("TextButton", {
+		Size = UDim2.new(1, -12, 0, 34),
+		Position = UDim2.new(0, 6, 0, 8 + (i - 1) * 38),
+		BackgroundTransparency = 1,
+		Text = name,
+		TextColor3 = THEME.dim,
+		Font = FB,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		AutoButtonColor = false,
+	}, sidebar)
+	mk("UIPadding", { PaddingLeft = UDim.new(0, 14) }, b)
+	local bar = mk("Frame", {
+		Size = UDim2.fromOffset(2, 8),
+		Position = UDim2.new(0, 2, 0.5, -8),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+	}, b)
+	bind(b.MouseButton1Click, function()
+		selectTab(i)
+	end)
+	table.insert(tabBtns, b)
+	table.insert(tabBars, bar)
+end
+
+local function newPage()
+	local p = mk("ScrollingFrame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 2,
+		ScrollBarImageColor3 = WHITE,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Visible = false,
+	}, content)
+	mk("UIListLayout", { Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder }, p)
+	mk("UIPadding", {
+		PaddingLeft = UDim.new(0, 12),
+		PaddingRight = UDim.new(0, 12),
+		PaddingTop = UDim.new(0, 10),
+		PaddingBottom = UDim.new(0, 12),
+	}, p)
+	table.insert(pages, p)
+	return p
+end
+
+-- ===== КОМПОНЕНТЫ =====
+local function section(parent, text)
+	return label(parent, text, UDim2.new(0, 2, 0, 0), UDim2.new(1, -2, 0, 16), THEME.dim, FB, 10)
+end
+
+local function attachIcon(b, key)
+	local img = iconId(key)
+	if not img then
+		return
+	end
+	mk("UIPadding", { PaddingLeft = UDim.new(0, 36) }, b)
+	mk("ImageLabel", {
+		BackgroundTransparency = 1,
+		Image = img,
+		ImageColor3 = WHITE,
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 10, 0.5, 0),
+		Size = UDim2.fromOffset(18, 18),
+	}, b)
+end
+
+local function makeButton(parent, text, cb, accent, iconKey)
+	local b = mk("TextButton", {
+		Size = UDim2.new(1, 0, 0, 32),
+		BackgroundColor3 = accent and WHITE or THEME.panel,
+		Text = text,
+		TextColor3 = accent and THEME.bg or THEME.text,
+		Font = FM,
+		TextSize = 12,
+		AutoButtonColor = false,
+	}, parent)
+	corner(b, 8)
+	attachIcon(b, iconKey)
+	addPress(b)
+	bind(b.MouseEnter, function()
+		tw(b, 0.15, { BackgroundColor3 = accent and Color3.fromRGB(220, 220, 225) or THEME.panelHi })
+	end)
+	bind(b.MouseLeave, function()
+		tw(b, 0.15, { BackgroundColor3 = accent and WHITE or THEME.panel })
+	end)
+	bind(b.MouseButton1Click, cb or function() end)
+	return b
+end
+
+local function makeToggle(parent, text, key, cb)
+	local card = mk("TextButton", {
+		Size = UDim2.new(1, 0, 0, 36),
+		BackgroundColor3 = THEME.panel,
+		Text = "",
+		AutoButtonColor = false,
+	}, parent)
+	corner(card, 8)
+	addPress(card)
+	hoverFx(card)
+	label(card, text, UDim2.fromOffset(12, 0), UDim2.new(1, -70, 1, 0), THEME.text, FM, 12)
+
+	local track = mk("Frame", {
+		Size = UDim2.fromOffset(34, 18),
+		Position = UDim2.new(1, -46, 0.5, -9),
+		BackgroundColor3 = THEME.off,
+	}, card)
+	corner(track, 9)
+
+	local knob = mk("Frame", {
+		Size = UDim2.fromOffset(14, 14),
+		Position = UDim2.fromOffset(2, 2),
+		BackgroundColor3 = THEME.dim,
+	}, track)
+	corner(knob, 7)
+
+	local function render()
+		local on = S[key]
+		tw(track, 0.2, { BackgroundColor3 = on and WHITE or THEME.off })
+		tw(knob, 0.2, {
+			Position = on and UDim2.fromOffset(18, 2) or UDim2.fromOffset(2, 2),
+			BackgroundColor3 = on and THEME.bg or THEME.dim,
+		})
+	end
+
+	bind(card.MouseButton1Click, function()
+		S[key] = not S[key]
+		render()
+		notify(text .. ": " .. (S[key] and "вкл" or "выкл"))
+		if cb then
+			cb(S[key])
+		end
+	end)
+
+	table.insert(refreshers, render)
+	render()
+	return card
+end
+
+local function makeSlider(parent, text, key, minV, maxV, step, fmt, cb, rainbowTrack)
+	local card = mk("Frame", { Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = THEME.panel }, parent)
+	corner(card, 8)
+	label(card, text, UDim2.fromOffset(12, 6), UDim2.new(1, -110, 0, 16), THEME.text, FM, 12)
+	local val = label(card, "", UDim2.new(1, -100, 0, 6), UDim2.fromOffset(88, 16), THEME.dim, FB, 11, Enum.TextXAlignment.Right)
+
+	local track = mk("TextButton", {
+		Position = UDim2.new(0, 12, 1, -14),
+		Size = UDim2.new(1, -24, 0, 6),
+		BackgroundColor3 = THEME.off,
+		Text = "",
+		AutoButtonColor = false,
+	}, card)
+	corner(track, 3)
+
+	local fill = mk("Frame", { Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, track)
+	corner(fill, 3)
+	if rainbowTrack then
+		track.BackgroundColor3 = WHITE
+		mk("UIGradient", { Color = RAINBOW }, track)
+		fill.Visible = false
+	end
+
+	local knob = mk("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(12, 12),
+		BackgroundColor3 = WHITE,
+	}, track)
+	corner(knob, 6)
+
+	local function render()
+		local r = math.clamp((S[key] - minV) / (maxV - minV), 0, 1)
+		val.Text = fmt(S[key])
+		tw(fill, 0.15, { Size = UDim2.new(r, 0, 1, 0) })
+		tw(knob, 0.15, { Position = UDim2.new(r, 0, 0.5, 0) })
+	end
+
+	local function setFromX(x)
+		local rel = math.clamp((x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+		local v = minV + (maxV - minV) * rel
+		if step then
+			v = math.floor(v / step + 0.5) * step
+		end
+		v = math.clamp(v, minV, maxV)
+		if v ~= S[key] then
+			S[key] = v
+			render()
+			if cb then
+				cb(v)
+			end
+		end
+	end
+
+	bind(track.InputBegan, function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			activeSlider = setFromX
+			setFromX(i.Position.X)
+		end
+	end)
+
+	table.insert(refreshers, render)
+	render()
+	return card
+end
+
+local function makePills(parent, list, key, cb)
+	local holder = mk("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+	}, parent)
+	mk("UIGridLayout", {
+		CellSize = UDim2.new(0.5, -4, 0, 28),
+		CellPadding = UDim2.fromOffset(8, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, holder)
+
+	local btns = {}
+	local function render()
+		for i, b in ipairs(btns) do
+			local on = S[key] == i
+			tw(b, 0.2, {
+				BackgroundColor3 = on and WHITE or THEME.panel,
+				TextColor3 = on and THEME.bg or THEME.dim,
+			})
+		end
+	end
+
+	for i, item in ipairs(list) do
+		local b = mk("TextButton", {
+			BackgroundColor3 = THEME.panel,
+			Text = item.name,
+			TextColor3 = THEME.dim,
+			Font = FB,
+			TextSize = 11,
+			AutoButtonColor = false,
+			LayoutOrder = i,
+		}, holder)
+		corner(b, 7)
+		addPress(b)
+		bind(b.MouseButton1Click, function()
+			S[key] = i
+			render()
+			notify(item.name)
+			if cb then
+				cb(i)
+			end
+		end)
+		table.insert(btns, b)
+	end
+
+	table.insert(refreshers, render)
+	render()
+	return holder
+end
+
+local function makeRow(parent, count)
+	local row = mk("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1 }, parent)
+	mk("UIGridLayout", {
+		CellSize = UDim2.new(1 / count, -6, 1, 0),
+		CellPadding = UDim2.fromOffset(6, 0),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, row)
+	return row
+end
+
+local function makeSwatches(parent)
+	local row = mk("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1 }, parent)
+	mk("UIGridLayout", {
+		CellSize = UDim2.new(0.125, -5, 1, 0),
+		CellPadding = UDim2.fromOffset(6, 0),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}, row)
+	for i, h in ipairs(SWATCHES) do
+		local b = mk("TextButton", {
+			BackgroundColor3 = hsv(h, 0.75, 1),
+			Text = "",
+			AutoButtonColor = false,
+			LayoutOrder = i,
+		}, row)
+		corner(b, 6)
+		addPress(b)
+		bind(b.MouseButton1Click, function()
+			S.hue = h
+			S.custom = true
+			refreshAll()
+			notify("Цвет выбран")
+		end)
+	end
+end
+
+local function makeAuraCards(parent)
+	local search = mk("TextBox", {
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = THEME.panel,
+		Text = "",
+		PlaceholderText = "Поиск ауры...",
+		PlaceholderColor3 = THEME.dim,
+		TextColor3 = THEME.text,
+		Font = FM,
+		TextSize = 12,
+		ClearTextOnFocus = false,
+	}, parent)
+	corner(search, 8)
+	mk("UIPadding", { PaddingLeft = UDim.new(0, 12) }, search)
+
+	local groups, allCards = {}, {}
+
+	for _, cat in ipairs(AURA_CATS) do
+		local title = section(parent, cat)
+		local holder = mk("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+		}, parent)
+		mk("UIGridLayout", {
+			CellSize = UDim2.new(0.5, -4, 0, 38),
+			CellPadding = UDim2.fromOffset(8, 8),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}, holder)
+
+		local group = { title = title, holder = holder, cards = {} }
+		for i, a in ipairs(AURAS) do
+			if a.cat == cat then
+				local c = mk("TextButton", {
+					BackgroundColor3 = WHITE,
+					Text = "",
+					AutoButtonColor = false,
+					LayoutOrder = i,
+				}, holder)
+				corner(c, 8)
+				local seq
+				if a.c3 then
+					seq = ColorSequence.new({ kp(0, a.c1), kp(0.5, a.c3), kp(1, a.c2) })
+				else
+					seq = ColorSequence.new(a.c1, a.c2)
+				end
+				mk("UIGradient", { Color = seq, Rotation = 90 }, c)
+				local st = stroke(c, WHITE, 1.5, 1)
+				local nm = label(c, a.name, UDim2.new(0, 8, 0, 0), UDim2.new(1, -16, 1, 0), WHITE, FB, 11)
+				nm.TextStrokeTransparency = 0.4
+				addPress(c)
+				bind(c.MouseButton1Click, function()
+					S.auraIdx = i
+					applyEmitter()
+					refreshAll()
+					notify("Аура: " .. a.name)
+				end)
+				local card = { btn = c, stroke = st, idx = i, name = a.name }
+				table.insert(group.cards, card)
+				table.insert(allCards, card)
+			end
+		end
+		table.insert(groups, group)
+	end
+
+	local function render()
+		for _, c in ipairs(allCards) do
+			c.stroke.Transparency = (S.auraIdx == c.idx) and 0 or 1
+		end
+	end
+
+	bind(search:GetPropertyChangedSignal("Text"), function()
+		local q = string.lower(search.Text)
+		for _, g in ipairs(groups) do
+			local shown = 0
+			for _, c in ipairs(g.cards) do
+				local ok = q == "" or string.find(string.lower(c.name), q, 1, true) ~= nil
+				c.btn.Visible = ok
+				if ok then
+					shown += 1
+				end
+			end
+			g.title.Visible = shown > 0
+			g.holder.Visible = shown > 0
+		end
+	end)
+
+	table.insert(refreshers, render)
+	render()
+end
+
+local function pct(v)
+	return string.format("%d%%", math.floor(v * 100 + 0.5))
+end
+
+local function num(v)
+	return string.format("%d", math.floor(v + 0.5))
+end
+
+local function mult(v)
+	return string.format("%.1fx", v)
+end
+
+local function clockFmt(v)
+	return string.format("%02d:%02d", math.floor(v), math.floor((v % 1) * 60 + 0.5))
+end
+
+local function degFmt(v)
+	return string.format("%d°", math.floor(v * 360 + 0.5))
+end
+
+local function secFmt(v)
+	return string.format("%d с", math.floor(v + 0.5))
+end
+
+local function f2(v)
+	return string.format("%.2f", v)
+end
+
+-- ===== СТРАНИЦЫ =====
+local pageVis = newPage()
+local pageWorld = newPage()
+local pageScreen = newPage()
+local pageSystem = newPage()
+
+-- ВИЗУАЛЫ
+section(pageVis, "АУРА")
+makeAuraCards(pageVis)
+section(pageVis, "ФОРМА")
+makePills(pageVis, SHAPES, "shapeIdx", function()
+	applyEmitter()
+	buildParts()
+	refreshAll()
+end)
+section(pageVis, "РЕЖИМ ЦВЕТА")
+makePills(pageVis, COLOR_MODES, "colorMode", refreshAll)
+section(pageVis, "ЭФФЕКТЫ")
+makeToggle(pageVis, "Аура", "aura")
+makeToggle(pageVis, "Формы (детали)", "parts")
+makeToggle(pageVis, "Кольцо под ногами", "ring")
+makeToggle(pageVis, "Второе кольцо", "ring2")
+makeToggle(pageVis, "Пыль вокруг", "dust")
+makeToggle(pageVis, "След при ходьбе", "trail")
+makeToggle(pageVis, "Вспышка при прыжке", "jumpBurst")
+makeToggle(pageVis, "Мерцание деталей", "flicker")
+makeToggle(pageVis, "Радужный режим", "rainbow", refreshAll)
+makeToggle(pageVis, "Реакция на ритм", "beatFx")
+makeToggle(pageVis, "Свет от каждой детали (L)", "partLight")
+section(pageVis, "НАСТРОЙКА")
+makeSlider(pageVis, "Сила ауры", "auraPower", 0.2, 3, 0.1, mult)
+makeSlider(pageVis, "Плотность", "density", 0.5, 2, 0.1, mult, buildParts)
+makeSlider(pageVis, "Скорость", "speed", 0.2, 3, 0.1, mult)
+makeSlider(pageVis, "Вращение", "spin", 0, 3, 0.1, mult)
+makeSlider(pageVis, "Размер деталей", "orbSize", 0.4, 2.5, 0.1, mult)
+makeSlider(pageVis, "Размер кольца", "ringSize", 2, 10, 0.5, mult)
+makeSlider(pageVis, "Радиус света", "lightRange", 2, 16, 1, num)
+section(pageVis, "АВТО-СМЕНА")
+makeToggle(pageVis, "Менять ауру по таймеру", "cycle")
+makeSlider(pageVis, "Интервал ауры", "cycleSec", 3, 30, 1, secFmt)
+makeToggle(pageVis, "Менять форму по таймеру", "cycleShape")
+makeSlider(pageVis, "Интервал формы", "shapeSec", 4, 40, 1, secFmt)
+section(pageVis, "БЫСТРО")
+makeButton(pageVis, "Случайный стиль (R)", randomize, true, "random")
+makeButton(pageVis, "Следующая аура (N)", function()
+	nextAura(false)
+end, false, "next")
+makeButton(pageVis, "Следующая форма (P)", nextShape, false, "shape")
+makeButton(pageVis, "Режим цвета (C)", nextColorMode, false, "color")
+
+-- МИР
+section(pageWorld, "НЕБО")
+makePills(pageWorld, SKIES, "skyIdx", applySky)
+section(pageWorld, "ВРЕМЯ И СВЕТ")
+makeSlider(pageWorld, "Время", "time", 0, 24, 0.5, clockFmt, function(v)
+	Lighting.ClockTime = v
+end)
+makeSlider(pageWorld, "Яркость", "bright", 0, 5, 0.1, mult, applyLight)
+section(pageWorld, "ЦВЕТОКОРРЕКЦИЯ")
+makePills(pageWorld, GRADES, "gradeIdx", applyGrade)
+makeToggle(pageWorld, "Цвет по свету ауры", "lightGrade", function(v)
+	if not v then
+		applyGrade(S.gradeIdx)
+		Lighting.OutdoorAmbient = ORIG_AMB
+	end
+end)
+makeSlider(pageWorld, "Сила цвета по свету", "lightGradeAmt", 0, 1, 0.05, pct)
+section(pageWorld, "ПОСТОБРАБОТКА")
+makeToggle(pageWorld, "Свечение (Bloom)", "bloom", applyPost)
+makeSlider(pageWorld, "Сила свечения", "bloomPower", 0.2, 3, 0.1, mult, applyPost)
+makeToggle(pageWorld, "Солнечные лучи", "rays", applyPost)
+makeToggle(pageWorld, "Размытие фона", "dof", applyPost)
+makeSlider(pageWorld, "Туман", "fog", 0, 1, 0.05, pct, applyFog)
+makeToggle(pageWorld, "Пульс тумана", "fogPulse", applyFog)
+
+section(pageWorld, "СНЕГ (ВЕЗДЕ)")
+makeToggle(pageWorld, "Идёт снег", "snow", buildSnow)
+makeSlider(pageWorld, "Количество снега", "snowAmt", 0.2, 3, 0.1, mult)
+makeSlider(pageWorld, "Скорость снега", "snowSpeed", 0.3, 3, 0.1, mult)
+makeSlider(pageWorld, "Размер снежинок", "snowSize", 0.4, 3, 0.1, mult)
+makeSlider(pageWorld, "Ветер", "snowWind", 0, 2, 0.1, mult)
+makeSlider(pageWorld, "Высота снегопада", "snowHeight", 25, 70, 1, num, buildSnow)
+
+section(pageWorld, "КУПОЛ СОЗВЕЗДИЙ")
+makeToggle(pageWorld, "Показывать купол", "stars", buildStars)
+makePills(pageWorld, DOME_STYLES, "domeStyle", buildStars)
+makeToggle(pageWorld, "Анимация купола", "domeAnim")
+makeToggle(pageWorld, "Падающие звёзды", "shooting")
+makeSlider(pageWorld, "Количество звёзд", "starCount", 12, 80, 1, num, buildStars)
+makeSlider(pageWorld, "Длина связей", "starLink", 0.25, 0.8, 0.05, f2, buildStars)
+makeSlider(pageWorld, "Радиус купола", "domeRadius", 30, 100, 5, num)
+makeSlider(pageWorld, "Скорость вращения", "starSpin", 0, 1.5, 0.05, f2)
+makeSlider(pageWorld, "Яркость звёзд", "starBright", 0.1, 1, 0.05, pct)
+
+section(pageWorld, "ЭФФЕКТЫ НЕБА")
+makeToggle(pageWorld, "Полярное сияние", "aurora", buildAurora)
+makeToggle(pageWorld, "Звёздный дождь", "rainStars", function(v)
+	if not v then
+		clearRain()
+	end
+end)
+makeSlider(pageWorld, "Частота дождя", "rainAmt", 0.2, 3, 0.1, mult)
+
+-- ЭКРАН
+section(pageScreen, "КАЧЕСТВО")
+makePills(pageScreen, QUALITY, "quality", function()
+	applyEmitter()
+	buildParts()
+	refreshAll()
+end)
+section(pageScreen, "СВОЙ ЦВЕТ")
+makeToggle(pageScreen, "Использовать свой цвет", "custom", refreshAll)
+makeSwatches(pageScreen)
+makeSlider(pageScreen, "Оттенок", "hue", 0, 1, 0.01, degFmt, nil, true)
+section(pageScreen, "ТЕЛО")
+makeToggle(pageScreen, "Светящийся контур (Highlight)", "outline", refreshAll)
+makeToggle(pageScreen, "Режим призрака (G)", "ghost", applyGhost)
+makeSlider(pageScreen, "Прозрачность призрака", "ghostAmt", 0.1, 0.9, 0.05, pct, applyGhost)
+section(pageScreen, "КАМЕРА И ОКНО")
+makeSlider(pageScreen, "Поле зрения (FOV)", "fov", 50, 110, 1, num, applyFov)
+makeToggle(pageScreen, "Показывать FPS и пинг", "showHud", function(v)
+	if hudBox then
+		hudBox.Visible = v
+	end
+end)
+makeToggle(pageScreen, "Уведомления", "notify")
+section(pageScreen, "ПРЕСЕТЫ")
+for _, p in ipairs(PRESETS) do
+	makeButton(pageScreen, p.name, function()
+		applyPreset(p)
+	end)
+end
+
+-- СИСТЕМА
+local function resetAll()
+	for k, v in pairs(DEFAULT) do
+		S[k] = v
+	end
+	applyAll()
+	notify("Настройки сброшены")
+end
+
+local function unload()
+	unloaded = true
+	for _, c in ipairs(conns) do
+		c:Disconnect()
+	end
+	clearFx()
+	clearShooters()
+	clearRain()
+	for _, p in ipairs(auroraParts) do
+		p:Destroy()
+	end
+	if snowPart then
+		snowPart:Destroy()
+	end
+	for _, p in ipairs(starNodes) do
+		p:Destroy()
+	end
+	Lighting.Brightness = ORIG_BRIGHT
+	Lighting.OutdoorAmbient = ORIG_AMB
+	local c = player.Character
+	if c then
+		for _, d in ipairs(c:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = 0
+			end
+		end
+	end
+	grade:Destroy()
+	bloom:Destroy()
+	rays:Destroy()
+	dof:Destroy()
+	gui:Destroy()
+end
+
+section(pageSystem, "СТАТИСТИКА")
+statLbl = label(pageSystem, "", UDim2.new(0, 2, 0, 0), UDim2.new(1, -2, 0, 100), THEME.good, FM, 12)
+statLbl.TextYAlignment = Enum.TextYAlignment.Top
+statLbl.TextWrapped = true
+
+section(pageSystem, "СЛОТЫ НАСТРОЕК")
+for i = 1, 3 do
+	local row = makeRow(pageSystem, 2)
+	local saveB = mk("TextButton", {
+		BackgroundColor3 = THEME.panel,
+		Text = "Сохранить " .. i,
+		TextColor3 = THEME.text,
+		Font = FM,
+		TextSize = 11,
+		AutoButtonColor = false,
+		LayoutOrder = 1,
+	}, row)
+	corner(saveB, 8)
+	addPress(saveB)
+	bind(saveB.MouseButton1Click, function()
+		saveSlot(i)
+	end)
+	local loadB = mk("TextButton", {
+		BackgroundColor3 = WHITE,
+		Text = "Загрузить " .. i,
+		TextColor3 = THEME.bg,
+		Font = FM,
+		TextSize = 11,
+		AutoButtonColor = false,
+		LayoutOrder = 2,
+	}, row)
+	corner(loadB, 8)
+	addPress(loadB)
+	bind(loadB.MouseButton1Click, function()
+		loadSlot(i)
+	end)
+	table.insert(slotBtns, loadB)
+end
+updateSlots()
+
+section(pageSystem, "ТЕЛО И ОКНО")
+makeToggle(pageSystem, "Уведомления", "notify")
+makeButton(pageSystem, "Вернуть окно в центр", function()
+	main.Position = UDim2.new(0.5, 0, 0.5, 0)
+end, false, "reset")
+makeButton(pageSystem, "Сбросить настройки", resetAll, false, "reset")
+makeButton(pageSystem, "Выгрузить скрипт", unload)
+
+section(pageSystem, "ГОРЯЧИЕ КЛАВИШИ")
+hint(pageSystem, "RShift — меню • N — аура • P — форма • C — режим цвета • L — свет деталей • G — призрак • R — случайный стиль • F — мерцание • H — FPS и пинг", 56)
+
+-- ===== ВЕРХНЯЯ ПАНЕЛЬ =====
+hudBox = mk("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 10),
+	Size = UDim2.fromOffset(0, 0),
+	AutomaticSize = Enum.AutomaticSize.XY,
+	BackgroundTransparency = 1,
+	Visible = S.showHud,
+}, gui)
+mk("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	Padding = UDim.new(0, 5),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, hudBox)
+
+floatBtn = mk("TextButton", {
+	Size = UDim2.fromOffset(130, 32),
+	BackgroundColor3 = THEME.bg,
+	Text = "МЕНЮ",
+	TextColor3 = WHITE,
+	Font = FB,
+	TextSize = 12,
+	AutoButtonColor = false,
+	LayoutOrder = 1,
+}, hudBox)
+corner(floatBtn, 10)
+local floatStroke = stroke(floatBtn, WHITE, 1, 0.6)
+addPress(floatBtn)
+bind(RunService.Heartbeat, function()
+	if floatStroke and floatStroke.Parent then
+		floatStroke.Transparency = 0.45 + 0.4 * math.sin(timeAcc * 2.2)
+	end
+end)
+
+hudLbl = mk("TextLabel", {
+	AutomaticSize = Enum.AutomaticSize.XY,
+	Size = UDim2.fromOffset(0, 0),
+	BackgroundColor3 = THEME.bg,
+	BackgroundTransparency = 0.3,
+	Text = "FPS --   PING -- ms",
+	Font = FB,
+	TextSize = 11,
+	TextColor3 = THEME.good,
+	LayoutOrder = 2,
+}, hudBox)
+corner(hudLbl, 7)
+mk("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3) }, hudLbl)
+
+toastHolder = mk("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 96),
+	Size = UDim2.fromOffset(300, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	BackgroundTransparency = 1,
+}, gui)
+mk("UIListLayout", {
+	Padding = UDim.new(0, 5),
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, toastHolder)
+
+-- ===== ОТКРЫТЬ / ЗАКРЫТЬ =====
+setOpen = function(v)
+	isOpen = v
+	floatBtn.Text = v and "ЗАКРЫТЬ" or "МЕНЮ"
+	if v then
+		main.Visible = true
+		main.GroupTransparency = 1
+		main.Position = UDim2.new(0.5, 0, 0.5, 18)
+		main.Size = UDim2.fromOffset(W * 0.94, H * 0.94)
+		tw(main, 0.45, { GroupTransparency = 0, Size = UDim2.fromOffset(W, H), Position = UDim2.new(0.5, 0, 0.5, 0) }, Enum.EasingStyle.Back)
+	else
+		local t = tw(main, 0.25, { GroupTransparency = 1, Size = UDim2.fromOffset(W * 0.94, H * 0.94), Position = UDim2.new(0.5, 0, 0.5, 18) }, Enum.EasingStyle.Quad)
+		t.Completed:Connect(function()
+			if not isOpen then
+				main.Visible = false
+			end
+		end)
+	end
+end
+
+bind(closeBtn.MouseButton1Click, function()
+	setOpen(false)
+end)
+
+bind(floatBtn.MouseButton1Click, function()
+	setOpen(not isOpen)
+end)
+
+bind(UIS.InputBegan, function(i, gp)
+	if gp then
+		return
+	end
+	local k = i.KeyCode
+	if k == Enum.KeyCode.RightShift then
+		setOpen(not isOpen)
+	elseif k == Enum.KeyCode.N then
+		nextAura(false)
+	elseif k == Enum.KeyCode.P then
+		nextShape()
+	elseif k == Enum.KeyCode.C then
+		nextColorMode()
+	elseif k == Enum.KeyCode.L then
+		S.partLight = not S.partLight
+		refreshAll()
+		notify("Свет деталей: " .. (S.partLight and "вкл" or "выкл"))
+	elseif k == Enum.KeyCode.R then
+		randomize()
+	elseif k == Enum.KeyCode.F then
+		S.flicker = not S.flicker
+		refreshAll()
+		notify("Мерцание: " .. (S.flicker and "вкл" or "выкл"))
+	elseif k == Enum.KeyCode.H then
+		S.showHud = not S.showHud
+		hudBox.Visible = S.showHud
+		refreshAll()
+		notify("FPS и пинг: " .. (S.showHud and "вкл" or "выкл"))
+	elseif k == Enum.KeyCode.G then
+		S.ghost = not S.ghost
+		applyGhost()
+		refreshAll()
+		notify("Призрак: " .. (S.ghost and "вкл" or "выкл"))
+	end
+end)
+
+-- ===== СТАРТ =====
+main.Visible = true
+setOpen(true)
+selectTab(1)
+applyAll()
+notify("Visual Hub v14 загружен")
